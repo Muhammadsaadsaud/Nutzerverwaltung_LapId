@@ -125,6 +125,34 @@ namespace API.Controllers
         }
 
         /// <summary>
+        /// Anmelden als Nutzer
+        /// </summary>
+        /// <param name="loginDto"></param>
+        /// <returns>[UserDto]</returns>
+        [HttpPost("login")]
+        public async Task<ActionResult<UserDto>> Login(LoginDto loginDto)
+        {
+            var user = await _context.Users.SingleOrDefaultAsync(x => x.Login == loginDto.Login.ToLower());
+            // ob ein Loign vorhanden ist
+            if (user == null)
+            {
+                // gib 400 Badrequest zurück, wenn Login nicht existiert
+                return BadRequest("Invalid Login");
+            }
+            // Erstellte eine Instanz von HMACSHA512 mit PasswordSalt
+            using var hmac = new HMACSHA512(user.PasswordSalt);
+            // Berechnet das gehashte Passwort für das vom Benutzer bereitgestellte Passwort
+            var ComputedHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(loginDto.Password));
+            // Prüft jedes Byte des HashPassword
+            for (int i = 0; i < ComputedHash.Length; i++)
+            {
+                if (ComputedHash[i] != user.PasswordHash[i]) return Unauthorized("Invalid password");
+            }
+            // Die erfolgreiche Login gibt einen Status Code 200 zurück mit [UserDto]
+            return Ok(ConvertToUserDto(user));
+        }
+
+        /// <summary>
         /// Eine private Methode, um zu überprüfen,
         /// ob ein Benutzer in einer Datenbank vorhanden ist
         /// </summary>
