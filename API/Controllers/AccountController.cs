@@ -103,6 +103,28 @@ namespace API.Controllers
         }
 
         /// <summary>
+        /// Löschen eines Nutzers
+        /// </summary>
+        /// <param name="id">ID eines Benutzers</param>
+        [HttpDelete("users/{id}")]
+        public async Task<ActionResult> Delete(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            // ob ein User vorhanden ist
+            if (user == null)
+            {
+                // gib 400 Badrequest zurück, wenn User nicht existiert
+                return BadRequest("Invalid User");
+            }
+            // Nutzer aus der Datenbank löschen
+            _context.Users.Remove(user);
+            // Änderungen asynchron in der Datenbank speichern
+            await _context.SaveChangesAsync();
+            // Die erfolgreiche Löschung gibt einen Status Code 200 zurück
+            return Ok("User has been deleted successfully");
+        }
+
+        /// <summary>
         /// Eine private Methode, um zu überprüfen,
         /// ob ein Benutzer in einer Datenbank vorhanden ist
         /// </summary>
