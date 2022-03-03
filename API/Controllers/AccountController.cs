@@ -61,6 +61,48 @@ namespace API.Controllers
         }
 
         /// <summary>
+        /// Bearbeiten eines Nutzers
+        /// </summary>
+        /// <param name="updateUserDto"></param>
+        /// <param name="id">ID eines Benutzers</param>
+        /// <returns>[UserDto]</returns>
+        [HttpPut("users/{id}")]
+        public async Task<ActionResult<UserDto>> Update(UpdateUserDto updateUserDto, int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+
+            // ob ein User vorhanden ist
+            if (user == null)
+            {
+                // gib 400 Badrequest zurück, wenn User nicht existiert
+                return BadRequest("Invalid User");
+            }
+
+            // ob ein Login vorhanden ist
+            if (await UserExists(updateUserDto.Login))
+            {
+                // gib 400 Badrequest zurück, wenn Login existiert
+                return BadRequest("Login is Taken");
+            }
+            using var hmac = new HMACSHA512();
+
+            user.Firstname = updateUserDto.Firstname.ToLower();
+            user.Lastname = updateUserDto.Lastname.ToLower();
+            user.Login = updateUserDto.Login.ToLower();
+            user.ChangeDate = DateTime.Now;
+            if (!string.IsNullOrEmpty(updateUserDto.Password))
+            {
+                user.PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(updateUserDto.Password));
+            }
+            // Änderungen asynchron in der Datenbank speichern
+            await _context.SaveChangesAsync();
+
+            var userDto = ConvertToUserDto(user);
+            // Erfolgreiche Erstellung gibt einen Status Code 200 mit [UserDto] zurück
+            return Ok(userDto);
+        }
+
+        /// <summary>
         /// Eine private Methode, um zu überprüfen,
         /// ob ein Benutzer in einer Datenbank vorhanden ist
         /// </summary>
