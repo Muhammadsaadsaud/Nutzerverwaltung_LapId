@@ -53,9 +53,9 @@ namespace API.Controllers
         /// <param name="id"></param>
         /// <returns>[User]</returns>
         [HttpGet("{id}")]
-        public async Task<ActionResult<User>> GetUser(int id)
+        public async Task<ActionResult<UserDto>> GetUser(int id)
         {
-            return await _context.Users.FindAsync(id);
+            return ConvertToUserDto(await _context.Users.FindAsync(id));
         }
 
         /// <summary>
