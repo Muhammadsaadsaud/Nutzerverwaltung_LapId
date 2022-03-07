@@ -11,7 +11,10 @@ Das folgende Framework, IDE und die folgenden Pakete sind erforderlich, um diese
 - "Microsoft.EntityFrameworkCore.Design" Version="6.0.2"
 - "Microsoft.EntityFrameworkCore.Sqlite" Version="6.0.2"
 - "Swashbuckle.AspNetCore" Version="6.2.3"
+- "Microsoft.Extensions.Configuration.Json" Version="6.0.0"
+- "AutoMapper" Version="11.0.1"
 - C# als Programmiersprache
+- SQLite als Datenbank
 
 ## Schritte zum Ausführen/Erstellen des Projekts
 
@@ -30,10 +33,10 @@ Man kann Postman oder Swagger verwenden, um die Endpunkte zu testen. Hier werde 
       * **[HttpPost] /api/Account/users**  ---> um einen Benutzer zu registrieren/anzulegen
       ```
         {
-          "firstname": "Max",
-          "lastname": "Mustermann",
+          "firstname": "max",
+          "lastname": "mustermann",
           "login": "max_mustermann",
-          "password": "123456",
+          "password": "admin",
         }
 
       ```
@@ -44,17 +47,17 @@ Man kann Postman oder Swagger verwenden, um die Endpunkte zu testen. Hier werde 
      ```
         mit Passwort
         {
-          "firstname": "Max",
-          "lastname": "Mustermann",
-          "login": "max_mustermann",
-          "password": "123456",
+          "firstname": "max2",
+          "lastname": "mustermann2",
+          "login": "max_mustermann2",
+          "password": "admin",
         }
         
         ohne Passwort
         
         {
-          "firstname": "Max2",
-          "lastname": "Mustermann2",
+          "firstname": "max2",
+          "lastname": "mustermann2",
           "login": "max_mustermann2"
         }
 
@@ -71,18 +74,7 @@ Man kann Postman oder Swagger verwenden, um die Endpunkte zu testen. Hier werde 
      ```
         {
           "login": "max_mustermann",
-          "password": "123456",
-        }
-        
-      ```
-       Sind Login und Passwort richtig soll dies einen Status Code 200 erzeugen.  
-       Sind Login oder Passwort falsch soll dies einen Status Code 400 erzeugen.
-       
-       * **[HttpGet] /api/Account/login**  ---> Anmelden als Nutzer
-     ```
-        {
-          "login": "max_mustermann",
-          "password": "123456",
+          "password": "admin",
         }
         
       ```
@@ -97,16 +89,16 @@ Man kann Postman oder Swagger verwenden, um die Endpunkte zu testen. Hier werde 
         [
            {
                 "id": "1",
-                "firstname": "Max",
-                "lastname": "Mustermann",
+                "firstname": "max",
+                "lastname": "mustermann",
                 "login": "max_mustermann",
                 "creationDate": "2020-01-01T12:00:00.000Z",
                 "changeDate": "2020-02-01T12:00:00.000Z"
            },
            {
                 "id": "2",
-                "firstname": "Erika",
-                "lastname": "Mustermann",
+                "firstname": "erika",
+                "lastname": "mustermann",
                 "login": "erika_mustermann",
                 "creationDate": "2020-01-02T12:00:00.000Z",
                 "changeDate": "2020-02-02T12:00:00.000Z"
@@ -118,8 +110,8 @@ Man kann Postman oder Swagger verwenden, um die Endpunkte zu testen. Hier werde 
       ```
            {
                 "id": "1",
-                "firstname": "Max",
-                "lastname": "Mustermann",
+                "firstname": "max",
+                "lastname": "mustermann",
                 "login": "max_mustermann",
                 "creationDate": "2020-01-01T12:00:00.000Z",
                 "changeDate": "2020-02-01T12:00:00.000Z"
