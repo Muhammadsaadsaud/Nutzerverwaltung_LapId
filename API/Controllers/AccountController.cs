@@ -1,10 +1,5 @@
-﻿using System.Security.Cryptography;
-using System.Text;
-using API.Data;
-using API.DTOs;
-using API.Entities;
+﻿using BLL.DTOs;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace API.Controllers
 {
@@ -13,15 +8,13 @@ namespace API.Controllers
     /// </summary>
     public class AccountController : BaseApiController
     {
-        private readonly DataContext _context;
+        private readonly BLL.UserBLL _BLL;
         /// <summary>
         /// Constructor
         /// </summary>
-        /// <param name="context">Instanz von DataContext,
-        /// als Dependency Injection übergeben</param>
-        public AccountController(DataContext context)
+        public AccountController()
         {
-            _context = context;
+            _BLL = new BLL.UserBLL();
         }
 
         /// <summary>
@@ -32,32 +25,18 @@ namespace API.Controllers
         [HttpPost("users")]
         public async Task<ActionResult<UserDto>> Register(RegisterDto registerDto)
         {
-            // ob ein Login vorhanden ist
-            if (await UserExists(registerDto.Login))
+            var userDto = await _BLL.CreateUser(registerDto);
+
+            if (userDto == null)
             {
-                // gib 400 Badrequest zurück, wenn Login existiert
-                return BadRequest("Login is Taken");
+                // gib 400 Badrequest zurück, wenn etwas schief gelaufen ist
+                return BadRequest("Invalid login");
             }
-            // eine Instanz von HMACSHA512 erstellt
-            using var hmac = new HMACSHA512();
-
-            var user = new User();
-            user.Firstname = registerDto.Firstname.ToLower();
-            user.Lastname = registerDto.Lastname.ToLower();
-            user.Login = registerDto.Login.ToLower();
-            user.CreationDate = DateTime.Now;
-            user.ChangeDate = DateTime.Now;
-            user.PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(registerDto.Password));
-            user.PasswordSalt = hmac.Key;
-
-            // Hinzufügen eines Benutzers zur Datenbank
-            _context.Users.Add(user);
-            // Änderungen asynchron in der Datenbank speichern
-            await _context.SaveChangesAsync();
-            // [User] in ein [UserDto] umwandeln
-            var userDto = ConvertToUserDto(user);
-            // Erfolgreiche Erstellung gibt einen Status Code 201 mit [UserDto] zurück
-            return Created($"~api/Users/{user.Id}", userDto);
+            else
+            {
+                // Erfolgreiche Erstellung gibt einen Status Code 201 mit [UserDto] zurück
+                return Created($"~api/Users/{userDto.Id}", userDto);
+            }
         }
 
         /// <summary>
@@ -67,39 +46,21 @@ namespace API.Controllers
         /// <param name="id">ID eines Benutzers</param>
         /// <returns>[UserDto]</returns>
         [HttpPut("users/{id}")]
-        public async Task<ActionResult<UserDto>> Update(UpdateUserDto updateUserDto, int id)
+        public async Task<ActionResult<bool>> Update(UpdateUserDto updateUserDto, int id)
         {
-            var user = await _context.Users.FindAsync(id);
-
-            // ob ein User vorhanden ist
-            if (user == null)
+            // ob ein User vorhanden ist, dann aktualisieren und true zurückgeben
+            if (!await _BLL.UpdateUser(id, updateUserDto))
             {
                 // gib 400 Badrequest zurück, wenn User nicht existiert
-                return BadRequest("Invalid User");
+                return BadRequest("Login name is already taken");
             }
-
-            // ob ein Login vorhanden ist
-            if (await UserExists(updateUserDto.Login))
+            else
             {
-                // gib 400 Badrequest zurück, wenn Login existiert
-                return BadRequest("Login is Taken");
-            }
-            using var hmac = new HMACSHA512();
 
-            user.Firstname = updateUserDto.Firstname.ToLower();
-            user.Lastname = updateUserDto.Lastname.ToLower();
-            user.Login = updateUserDto.Login.ToLower();
-            user.ChangeDate = DateTime.Now;
-            if (!string.IsNullOrEmpty(updateUserDto.Password))
-            {
-                user.PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(updateUserDto.Password));
-            }
-            // Änderungen asynchron in der Datenbank speichern
-            await _context.SaveChangesAsync();
+                // Erfolgreiche Bearbeitung gibt einen Status Code 200 zurück
+                return Ok("User has been successfully updated");
 
-            var userDto = ConvertToUserDto(user);
-            // Erfolgreiche Erstellung gibt einen Status Code 200 mit [UserDto] zurück
-            return Ok(userDto);
+            }
         }
 
         /// <summary>
@@ -109,19 +70,17 @@ namespace API.Controllers
         [HttpDelete("users/{id}")]
         public async Task<ActionResult> Delete(int id)
         {
-            var user = await _context.Users.FindAsync(id);
             // ob ein User vorhanden ist
-            if (user == null)
+            if (!await _BLL.DeleteUser(id))
             {
-                // gib 400 Badrequest zurück, wenn User nicht existiert
+                // Eine fehlerhafte Löschung wird mit Status Code 400 angezeigt
                 return BadRequest("Invalid User");
             }
-            // Nutzer aus der Datenbank löschen
-            _context.Users.Remove(user);
-            // Änderungen asynchron in der Datenbank speichern
-            await _context.SaveChangesAsync();
-            // Die erfolgreiche Löschung gibt einen Status Code 200 zurück
-            return Ok("User has been deleted successfully");
+            else
+            {
+                // Die erfolgreiche Löschung gibt einen Status Code 200 zurück
+                return Ok("User has been deleted successfully");
+            }
         }
 
         /// <summary>
@@ -132,54 +91,15 @@ namespace API.Controllers
         [HttpPost("login")]
         public async Task<ActionResult<UserDto>> Login(LoginDto loginDto)
         {
-            var user = await _context.Users.SingleOrDefaultAsync(x => x.Login == loginDto.Login.ToLower());
+            var userDto = await _BLL.LoginUser(loginDto);
             // ob ein Loign vorhanden ist
-            if (user == null)
+            if (userDto == null)
             {
-                // gib 400 Badrequest zurück, wenn Login nicht existiert
+                // Sind Login oder Passwort falsch soll dies einen Status Code 400 erzeugen
                 return BadRequest("Invalid Login");
             }
-            // Erstellte eine Instanz von HMACSHA512 mit PasswordSalt
-            using var hmac = new HMACSHA512(user.PasswordSalt);
-            // Berechnet das gehashte Passwort für das vom Benutzer bereitgestellte Passwort
-            var ComputedHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(loginDto.Password));
-            // Prüft jedes Byte des HashPassword
-            for (int i = 0; i < ComputedHash.Length; i++)
-            {
-                if (ComputedHash[i] != user.PasswordHash[i]) return Unauthorized("Invalid password");
-            }
-            // Die erfolgreiche Login gibt einen Status Code 200 zurück mit [UserDto]
-            return Ok(ConvertToUserDto(user));
+            // Sind Login und Passwort richtig soll dies einen Status Code 200 erzeugen
+            return Ok(userDto);
         }
-
-        /// <summary>
-        /// Eine private Methode, um zu überprüfen,
-        /// ob ein Benutzer in einer Datenbank vorhanden ist
-        /// </summary>
-        /// <param name="login"></param>
-        /// <returns>bool(true/false)</returns>
-        private async Task<bool> UserExists(string login)
-        {
-            return await _context.Users.AnyAsync(x => x.Login == login.ToLower());
-        }
-
-        /// <summary>
-        /// [User] in ein [UserDto] umwandeln
-        /// </summary>
-        /// <param name="user"></param>
-        /// <returns>[UserDto]</returns>
-        private UserDto ConvertToUserDto(User user)
-        {
-            var userDto = new UserDto();
-            userDto.Id = user.Id;
-            userDto.Firstname = user.Firstname;
-            userDto.Lastname = user.Lastname;
-            userDto.CreationDate = user.CreationDate;
-            userDto.ChangeDate = user.ChangeDate;
-            userDto.Login = user.Login;
-            return userDto;
-        }
-
-
     }
 }
